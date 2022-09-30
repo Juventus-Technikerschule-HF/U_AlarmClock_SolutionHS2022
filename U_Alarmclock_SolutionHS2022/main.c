@@ -35,6 +35,9 @@ extern void vApplicationIdleHook( void );
 void vTimeTask(void *pvParameters);
 void vUITask(void *pvParameters);
 void vButtonTask(void *pvParameters);
+void vAlarmBlinkTask(void *pvParameters);
+bool checkAlarmTime(void);
+
 //EventGroup for ButtonEvents.
 EventGroupHandle_t egButtonEvents = NULL;
 #define BUTTON1_SHORT	0x01
@@ -46,6 +49,10 @@ EventGroupHandle_t egButtonEvents = NULL;
 #define BUTTON4_SHORT	0x40
 #define BUTTON4_LONG	0x80
 #define BUTTON_ALL		0xFF
+
+//EventGroup for Alarm State. 
+EventGroupHandle_t egAlarmState = NULL;
+#define ALARMSTATE_ENABLED	0x01
 
 //Time in hours, minutes and seconds. Each as uint8_t to prevent corrupt data
 uint8_t hours = 18;
@@ -70,6 +77,8 @@ int main(void)
 	xTaskCreate( vTimeTask, (const char *) "timetask", configMINIMAL_STACK_SIZE, NULL, 3, NULL); //Init TimeTask. Highest Priority to maximize Time accuracy
 	xTaskCreate( vUITask, (const char *) "uitask", configMINIMAL_STACK_SIZE, NULL, 1, NULL); //Init UITask. Lowest Priority. Least time critical.
 	xTaskCreate( vButtonTask, (const char*) "bttask", configMINIMAL_STACK_SIZE, NULL, 2, NULL); //Init ButtonTask. Medium Priority. Somehow important to time Button debouncing and timing.
+	xTaskCreate( vAlarmBlinkTask, (const char *) "alarmtsk", configMINIMAL_STACK_SIZE, NULL, 1, NULL); //Init AlarmBlinkTask. Same Priority as UITask. Part of the UI.
+
 	vTaskStartScheduler();
 	return 0;
 }
@@ -103,6 +112,7 @@ void vUITask(void *pvParameters) {
 	char timestring[20]; //Variable for temporary string
 	uint8_t cursorPos = 0; //temporary variable for cursor position
 	uint8_t mode = MODE_IDLE;
+	egAlarmState = xEventGroupCreate();
 	while(egButtonEvents == NULL) { //Wait for EventGroup to be initialized in other task
 		vTaskDelay(10/portTICK_RATE_MS);
 	}
@@ -116,6 +126,10 @@ void vUITask(void *pvParameters) {
 				sprintf(timestring, "%2i:%02i:%02i", alarmHours, alarmMinutes, alarmSeconds);	//Writing Alarm Time into one string
 				if(alarmActivated == true) { //Writing Alarm Time string onto Display, Write Alarm On/Off depending on alarmActivated state.
 					vDisplayWriteStringAtPos(2,0,"Alarm: On   %s", &timestring[0]);
+					if(checkAlarmTime() == true) {
+						xEventGroupSetBits(egAlarmState, ALARMSTATE_ENABLED);
+						mode = MODE_ALARMALARM;
+					}
 				} else {
 					vDisplayWriteStringAtPos(2,0,"Alarm: Off  %s", &timestring[0]);
 				}
@@ -287,6 +301,10 @@ void vUITask(void *pvParameters) {
 				vDisplayClear();
 				vDisplayWriteStringAtPos(0,0,"ALARM! ALARM!");
 				vDisplayWriteStringAtPos(3,0, " _ | _ |  _  | Back"); //Draw Button Info
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON4_LONG) {
+					mode = MODE_IDLE;
+					xEventGroupClearBits(egAlarmState, ALARMSTATE_ENABLED);
+				}
 				break;
 			}
 		}
@@ -327,3 +345,19 @@ void vButtonTask(void *pvParameters) {
 		vTaskDelay((1000/BUTTON_UPDATE_FREQUENCY_HZ)/portTICK_RATE_MS);
 	}
 }
+
+void vAlarmBlinkTask(void *pvParameters) {
+	PORTF.DIRSET = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm; /*Initialize LED1-LED4*/
+	PORTF.OUTSET = 0x0F; //Initial State of LEDs: Off
+	while(egAlarmState == NULL) { //Wait for EventGroup to be initialized in other task 
+		vTaskDelay(10/portTICK_RATE_MS);	
+	} 
+	for(;;) {
+		xEventGroupWaitBits(egAlarmState, ALARMSTATE_ENABLED, false, true, portMAX_DELAY); //Wait until Alarm is active
+		PORTF.OUTCLR = 0x0F; //Turn LEDs On
+		vTaskDelay(100 / portTICK_RATE_MS);
+		PORTF.OUTSET = 0x0F; //Turn LEDs Off
+		vTaskDelay(100 / portTICK_RATE_MS);
+	}
+}
+
