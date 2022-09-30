@@ -120,6 +120,14 @@ void vUITask(void *pvParameters) {
 				}
 				vDisplayWriteStringAtPos(3,0,"_ | Al | SetA | SetT"); //Draw Button Info
 				
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON4_LONG) { //If Button4 is pressed long -> Goto MODE_SETTIME
+					mode = MODE_SETTIME;
+					cursorPos = 0;
+				}
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON3_LONG) { //If Button3 is pressed long -> Goto MODE_SETTIME
+					mode = MODE_SETALARM;
+					cursorPos = 0;
+				}
 				if(xEventGroupGetBits(egButtonEvents) & BUTTON2_LONG) { //If Button2 is pressed long -> Enable/Disable alarmActivated state
 					if(alarmActivated == false) {
 						alarmActivated = true;
