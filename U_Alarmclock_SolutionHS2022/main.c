@@ -101,6 +101,7 @@ void vTimeTask(void *pvParameters) {
 void vUITask(void *pvParameters) {
 	bool alarmActivated	= false; //alarmActivated state. Can be On or Off / true/false
 	char timestring[20]; //Variable for temporary string
+	uint8_t cursorPos = 0; //temporary variable for cursor position
 	uint8_t mode = MODE_IDLE;
 	while(egButtonEvents == NULL) { //Wait for EventGroup to be initialized in other task
 		vTaskDelay(10/portTICK_RATE_MS);
@@ -143,16 +144,139 @@ void vUITask(void *pvParameters) {
 				vDisplayWriteStringAtPos(0,0,"Set Time");
 				sprintf(timestring, "%2i:%02i:%02i", hours, minutes, seconds); //Writing Time into one string
 				vDisplayWriteStringAtPos(1,0,"Time:       %s", &timestring[0]); //Writing Time string onto Display
+				vDisplayWriteStringAtPos(2,12 + (cursorPos * 3), "^^"); //Draw Cursor Position
 				vDisplayWriteStringAtPos(3,0, "Cur |Dec |Inc |Back"); //Draw Button Info
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON1_SHORT) { //Change Cursor Position
+					cursorPos++;
+					if(cursorPos > 2) {
+						cursorPos = 0;
+					}
+				}
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON2_SHORT) { //Decrement Time
+					switch(cursorPos) {
+						case 0: //set hours
+						{
+							hours--;
+							if(hours > 23) { //This works because hours is a uint8_t and 0 - 1 -> 255 which is greater then 23.
+								hours = 23;
+							}
+							break;
+						}
+						case 1: //set minutes
+						{
+							minutes--;
+							if(minutes > 59) {
+								minutes = 59;
+							}
+							break;
+						}						
+						case 2: //set seconds to zero. It makes no sense to imcrement/decrement seconds
+						{
+							seconds = 0;
+							break;
+						}						
+					}
+				}
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON3_SHORT) { //Increment Time
+					switch(cursorPos) {
+						case 0: //set hours
+						{
+							hours++;
+							if(hours > 23) {
+								hours = 0;
+							}
+							break;
+						}
+						case 1: //set minutes
+						{
+							minutes++;
+							if(minutes > 59) {
+								minutes = 0;
+							}
+							break;
+						}						
+						case 2: //set seconds to zero. It makes no sense to imcrement/decrement seconds
+						{
+							seconds = 0;
+							break;
+						}						
+					}
+				}
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON4_LONG) {
+					mode = MODE_IDLE;
+				}
 				break;
 			}			
 			case MODE_SETALARM:
 			{
 				vDisplayClear();
 				vDisplayWriteStringAtPos(0,0,"Set Alarm Time");
+				vDisplayWriteStringAtPos(1,12 + (cursorPos * 3), "vv"); //Draw Cursor Position
 				sprintf(timestring, "%2i:%02i:%02i", alarmHours, alarmMinutes, alarmSeconds);	//Writing Alarm Time into one string
 				vDisplayWriteStringAtPos(2,0,"Alarm:      %s", &timestring[0]); //Writing Time string onto Display
 				vDisplayWriteStringAtPos(3,0, "Cur |Dec |Inc |Back"); //Draw Button Info
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON1_SHORT) { //Change Cursor Position
+					cursorPos++;
+					if(cursorPos > 2) {
+						cursorPos = 0;
+					}
+				}
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON2_SHORT) { //Decrement Time
+					switch(cursorPos) {
+						case 0: //set alarmHours
+						{
+							alarmHours--;
+							if(alarmHours > 23) {
+								alarmHours = 23;
+							}
+							break;
+						}
+						case 1: //set alarmMinutes
+						{
+							alarmMinutes--;
+							if(alarmMinutes > 59) {
+								alarmMinutes = 59;
+							}
+							break;
+						}
+						case 2: //set alarmSeconds
+						{
+							alarmSeconds--;
+							if(alarmSeconds > 59) {
+								alarmSeconds = 59;
+							}
+							break;
+						}
+					}
+				}
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON3_SHORT) { //Increment Time
+					switch(cursorPos) {
+						case 0: //set alarmHours
+						{
+							alarmHours++;
+							if(alarmHours > 23) {
+								alarmHours = 0;
+							}
+							break;
+						}
+						case 1: //set alarmMinutes
+						{
+							alarmMinutes++;
+							if(alarmMinutes > 59) {
+								alarmMinutes = 0;
+							}
+							break;
+						}
+						case 2: //set alarmSeconds
+						{
+							alarmSeconds++;
+							if(alarmSeconds > 59) {
+								alarmSeconds = 0;
+							}
+							break;
+						}
+					}
+				}
 				if(xEventGroupGetBits(egButtonEvents) & BUTTON4_LONG) {
 					mode = MODE_IDLE;
 				}
