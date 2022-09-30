@@ -29,6 +29,7 @@
 extern void vApplicationIdleHook( void );
 
 //function forward declarations
+void vTimeTask(void *pvParameters);
 //Time in hours, minutes and seconds. Each as uint8_t to prevent corrupt data
 uint8_t hours = 18;
 uint8_t minutes = 15;
