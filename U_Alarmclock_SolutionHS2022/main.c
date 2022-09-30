@@ -290,6 +290,7 @@ void vUITask(void *pvParameters) {
 				break;
 			}
 		}
+		xEventGroupClearBits(egButtonEvents, BUTTON_ALL);
 		vTaskDelay(200/portTICK_RATE_MS);
 	}
 }
