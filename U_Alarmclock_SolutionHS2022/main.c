@@ -27,11 +27,26 @@
 #include "errorHandler.h"
 #include "NHD0420Driver.h"
 
+#include "ButtonHandler.h"
+
 extern void vApplicationIdleHook( void );
 
 //function forward declarations
 void vTimeTask(void *pvParameters);
 void vUITask(void *pvParameters);
+void vButtonTask(void *pvParameters);
+//EventGroup for ButtonEvents.
+EventGroupHandle_t egButtonEvents = NULL;
+#define BUTTON1_SHORT	0x01
+#define BUTTON1_LONG	0x02
+#define BUTTON2_SHORT	0x04
+#define BUTTON2_LONG	0x08
+#define BUTTON3_SHORT	0x10
+#define BUTTON3_LONG	0x20
+#define BUTTON4_SHORT	0x40
+#define BUTTON4_LONG	0x80
+#define BUTTON_ALL		0xFF
+
 //Time in hours, minutes and seconds. Each as uint8_t to prevent corrupt data
 uint8_t hours = 18;
 uint8_t minutes = 15;
@@ -40,6 +55,7 @@ uint8_t seconds = 00;
 uint8_t alarmHours = 21;
 uint8_t alarmMinutes = 35;
 uint8_t alarmSeconds = 00;
+
 
 void vApplicationIdleHook( void )
 {	
@@ -50,8 +66,10 @@ int main(void)
 {
     vInitClock();
 	vInitDisplay();
+	
 	xTaskCreate( vTimeTask, (const char *) "timetask", configMINIMAL_STACK_SIZE, NULL, 3, NULL); //Init TimeTask. Highest Priority to maximize Time accuracy
 	xTaskCreate( vUITask, (const char *) "uitask", configMINIMAL_STACK_SIZE, NULL, 1, NULL); //Init UITask. Lowest Priority. Least time critical.
+	xTaskCreate( vButtonTask, (const char*) "bttask", configMINIMAL_STACK_SIZE, NULL, 2, NULL); //Init ButtonTask. Medium Priority. Somehow important to time Button debouncing and timing.
 	vTaskStartScheduler();
 	return 0;
 }
@@ -83,6 +101,9 @@ void vTimeTask(void *pvParameters) {
 void vUITask(void *pvParameters) {
 	char timestring[20]; //Variable for temporary string
 	uint8_t mode = MODE_IDLE;
+	while(egButtonEvents == NULL) { //Wait for EventGroup to be initialized in other task
+		vTaskDelay(10/portTICK_RATE_MS);
+	}
 	for(;;) {
 		switch(mode) {
 			case MODE_IDLE: {
@@ -126,5 +147,38 @@ void vUITask(void *pvParameters) {
 			}
 		}
 		vTaskDelay(200/portTICK_RATE_MS);
+	}
+}
+void vButtonTask(void *pvParameters) {
+	egButtonEvents = xEventGroupCreate();
+	initButtons(); //Initialize Buttons
+	for(;;) {
+		updateButtons();
+		
+		if(getButtonPress(BUTTON1) == SHORT_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON1_SHORT);
+		}
+		if(getButtonPress(BUTTON2) == SHORT_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON2_SHORT);
+		}
+		if(getButtonPress(BUTTON3) == SHORT_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON3_SHORT);
+		}
+		if(getButtonPress(BUTTON4) == SHORT_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON4_SHORT);
+		}
+		if(getButtonPress(BUTTON1) == LONG_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON1_LONG);
+		}
+		if(getButtonPress(BUTTON2) == LONG_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON2_LONG);
+		}
+		if(getButtonPress(BUTTON3) == LONG_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON3_LONG);
+		}
+		if(getButtonPress(BUTTON4) == LONG_PRESSED) {
+			xEventGroupSetBits(egButtonEvents, BUTTON4_LONG);
+		}
+		vTaskDelay((1000/BUTTON_UPDATE_FREQUENCY_HZ)/portTICK_RATE_MS);
 	}
 }
