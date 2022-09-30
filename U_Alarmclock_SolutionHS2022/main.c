@@ -99,6 +99,7 @@ void vTimeTask(void *pvParameters) {
 #define MODE_ALARMALARM 3
 
 void vUITask(void *pvParameters) {
+	bool alarmActivated	= false; //alarmActivated state. Can be On or Off / true/false
 	char timestring[20]; //Variable for temporary string
 	uint8_t mode = MODE_IDLE;
 	while(egButtonEvents == NULL) { //Wait for EventGroup to be initialized in other task
@@ -112,9 +113,20 @@ void vUITask(void *pvParameters) {
 				sprintf(timestring, "%2i:%02i:%02i", hours, minutes, seconds); //Writing Time into one string
 				vDisplayWriteStringAtPos(1,0,"Time:       %s", &timestring[0]); //Writing Time string onto Display
 				sprintf(timestring, "%2i:%02i:%02i", alarmHours, alarmMinutes, alarmSeconds);	//Writing Alarm Time into one string
+				if(alarmActivated == true) { //Writing Alarm Time string onto Display, Write Alarm On/Off depending on alarmActivated state.
 					vDisplayWriteStringAtPos(2,0,"Alarm: On   %s", &timestring[0]);
+				} else {
+					vDisplayWriteStringAtPos(2,0,"Alarm: Off  %s", &timestring[0]);
+				}
 				vDisplayWriteStringAtPos(3,0,"_ | Al | SetA | SetT"); //Draw Button Info
 				
+				if(xEventGroupGetBits(egButtonEvents) & BUTTON2_LONG) { //If Button2 is pressed long -> Enable/Disable alarmActivated state
+					if(alarmActivated == false) {
+						alarmActivated = true;
+					} else {
+						alarmActivated = false;
+					}
+				}
 				break;
 			}
 			case MODE_SETTIME:
