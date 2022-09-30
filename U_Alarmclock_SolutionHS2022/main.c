@@ -361,3 +361,13 @@ void vAlarmBlinkTask(void *pvParameters) {
 	}
 }
 
+bool checkAlarmTime(void) {
+	if(hours == alarmHours) {
+		if(minutes == alarmMinutes) {
+			if(seconds == alarmSeconds) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
